@@ -80,6 +80,10 @@ interface ITimerDef {
     name: string
     totalTime: Duration
     currentTime: DateTime
+
+    triggerStart?: () => void
+    triggerStop?: () => void
+    siblingRunning?: string
 }
 
 function Timer(props: ITimerDef) {
@@ -87,28 +91,49 @@ function Timer(props: ITimerDef) {
     const [expanded, setExpanded] = useState<boolean>(false)
     const [optionsOpen, setOptionsOpen] = useState<boolean>(false)
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
+    const [childRunning, setChildRunning] = useState<string | undefined>(undefined)
     const [started, setStarted] = useState<DateTime | undefined>(undefined)
+    const [elapsed, setElapsed] = useState<Duration>(Duration.fromMillis(0))
 
     const addTimer = (def: ITimerDef) => {
         setTimers([...timers, def])
     }
 
-    const timeRemaining = (started ? props.currentTime.diff(started) : props.totalTime)
+    const currentSegment = started ? props.currentTime.diff(started) : Duration.fromMillis(0)
+    const timeRemaining = props.totalTime.minus(currentSegment.plus(elapsed))
+
+    if (timeRemaining.milliseconds < 10) {
+        setStarted(undefined)
+        setElapsed(Duration.fromMillis(0))
+    }
 
     const toggleExpanded = () => { setExpanded(!expanded) }
+
+    const startTimer = () => {
+        setStarted(props.currentTime)
+        props.triggerStart && props.triggerStart()
+    }
+
+    const stopTimer = () => {
+        setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
+        setStarted(undefined)
+        props.triggerStop && props.triggerStop()
+    }
+
+    if (props.siblingRunning && props.siblingRunning !== props.name && started) {
+        setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
+        setStarted(undefined)
+    }
+
 
     return (
         <li className="Timer">
             <h2>
                 <TimerControl
                     running={started !== undefined}
-                    percentRemaining={1 - (timeRemaining.milliseconds / props.totalTime.milliseconds)}
-                    onStart={() => {
-                        setStarted(DateTime.local())
-                    }}
-                    onStop={() => {
-                        setStarted(undefined)
-                    }}
+                    percentRemaining={timeRemaining.milliseconds / props.totalTime.milliseconds}
+                    onStart={startTimer}
+                    onStop={stopTimer}
                 />
                 {` ${props.name} `}
                 {expanded ?
@@ -122,6 +147,7 @@ function Timer(props: ITimerDef) {
                         onClick={toggleExpanded}
                     />
                 }
+                {" " + timeRemaining.toFormat("hh:mm:ss")}
             </h2>
             {expanded && <ul className="TimerList">
                 {timers.map(def => (
@@ -130,6 +156,20 @@ function Timer(props: ITimerDef) {
                         name={def.name}
                         totalTime={def.totalTime}
                         currentTime={props.currentTime}
+
+                        triggerStart={() => {
+                            setChildRunning(def.name)
+                            if (started === undefined) {
+                                startTimer()
+                            }
+                        }}
+                        triggerStop={() => {
+                            setChildRunning(undefined)
+                            if (started !== undefined) {
+                                stopTimer()
+                            }
+                        }}
+                        siblingRunning={childRunning}
                     />)
                 )}
                 {addDialogOpen || <button onClick={() => setAddDialogOpen(true)}>+</button>}

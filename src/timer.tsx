@@ -13,6 +13,7 @@ export function TimerPage(props: {}) {
     const [currentTime, setCurrentTime] = useState<DateTime>(DateTime.local())
 
     const addTimer = (def: ITimerDef) => {
+        console.log("Adding timer", def)
         setTimers([...timers, def])
     }
 
@@ -31,7 +32,7 @@ export function TimerPage(props: {}) {
                     <Timer
                         key={def.name}
                         name={def.name}
-                        totalTime={def.totalTime}
+                        totalTime={def.totalTime.shiftTo("milliseconds")}
                         currentTime={currentTime}
                     />)
                 )}
@@ -42,36 +43,162 @@ export function TimerPage(props: {}) {
     )
 }
 
-function AddTimerDialog(props: {addTimer: (def: ITimerDef) => void, onCancel: () => void}) {
+function AddTimerDialog(props: {
+        maxDuration?: Duration,
+        addTimer: (def: ITimerDef) => void,
+        onCancel: () => void
+    }) {
     const { addTimer, onCancel } = props
 
     const [name, setName] = useState<string>("")
-    const [totalTime, setTotalTime] = useState<number>(0)
+    const [totalTime, setTotalTime] = useState<Duration|undefined>(undefined)
 
     return (
-        <div>
-            <div>
-                <label>Name</label>
-                <input
-                    value={name}
-                    onChange={({ target }) => setName(target.value)}
-                />
-            </div>
-            <div>
-                <label>Total Time</label>
-                <input
-                    value={totalTime}
-                    onChange={({ target }) => setTotalTime(parseInt(target.value) || 0)}
-                />
-            </div>
-            <button
-                onClick={() => {
-                    addTimer({ name, totalTime: Duration.fromMillis(totalTime * 1000), currentTime: DateTime.local() })
-                    onCancel()
-                }}>
-                Add
-            </button>
-            <button onClick={onCancel}>Cancel</button>
+        <table>
+            <tr>
+                <td><label>Name</label></td>
+                <td>
+                    <input
+                        value={name}
+                        onChange={({ target }) => setName(target.value)}
+                    />
+                </td>
+            </tr>
+            <tr>
+                <td><label>Total Time</label></td>
+                <td>
+                    <DurationInput
+                        maxDuration={props.maxDuration}
+                        onChange={(time) => setTotalTime(Duration.fromObject(time))}
+                    />
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <button
+                        onClick={() => {
+                            console.log("Adding timer", name, totalTime)
+                            addTimer({ name, totalTime: totalTime || Duration.fromMillis(0), currentTime: DateTime.local() })
+                            onCancel()
+                        }}>
+                        Add
+                    </button>
+                </td>
+                <td>
+                    <button onClick={onCancel}>Cancel</button>
+                </td>
+            </tr>
+        </table>
+    )
+}
+
+function DurationInput(props: {
+        onChange: (time: {hours: number, minutes: number, seconds: number}) => void,
+        maxDuration?: Duration|undefined,
+    }) {
+    const { onChange, maxDuration } = props
+
+    const [hours, setHours] = useState<number>(0)
+    const [minutes, setMinutes] = useState<number>(0)
+    const [seconds, setSeconds] = useState<number>(0)
+
+    const currentDuration = Duration.fromObject({ hours, minutes, seconds }).shiftTo("milliseconds")
+    const availableDuration = maxDuration ? maxDuration.minus(currentDuration) : undefined
+
+    useEffect(() => {
+        onChange({ hours, minutes, seconds })
+    }, [hours, minutes, seconds, onChange])
+
+    if (seconds > 59) {
+        setSeconds(seconds - 60)
+        setMinutes(minutes + 1)
+    } else if (seconds < 0) {
+        if (minutes > 0) {
+            setSeconds(seconds + 60)
+            setMinutes(minutes - 1)
+        } else {
+            setSeconds(0)
+        }
+    }
+    if (minutes > 59) {
+        setMinutes(minutes - 60)
+        setHours(hours + 1)
+    } else if (minutes < 0) {
+        if (hours > 0) {
+            setMinutes(minutes + 60)
+            setHours(hours - 1)
+        } else {
+            setMinutes(0)
+        }
+    }
+    if (hours < 0) {
+        setHours(0)
+    }
+    if (availableDuration && availableDuration.as("milliseconds") < 0) {
+        const { hours, minutes, seconds } = availableDuration
+            .plus(currentDuration)
+            .shiftTo("hours", "minutes", "seconds")
+            .toObject()
+
+        if (hours !== undefined) {
+            setHours(hours)
+        }
+        if (minutes !== undefined) {
+            setMinutes(minutes)
+        }
+        if (seconds !== undefined) {
+            setSeconds(seconds)
+        }
+    }
+
+    const padZero = (num: number) => num < 10 ? `0${num}` : String(num)
+
+    return (
+        <div className="TimeInput">
+            <input
+                type="number"
+                className="TimeInputField"
+                maxLength={2}
+                size={2}
+                value={padZero(hours)}
+                onChange={
+                    ({ target }) => {
+                        const hours = parseInt(target.value) || 0
+                        setHours(hours)
+                    }
+                }
+            />
+            <span>:</span>
+            <input
+                type="number"
+                className="TimeInputField"
+                maxLength={2}
+                size={2}
+                value={padZero(minutes)}
+                onChange={
+                    ({ target }) => {
+                        const minutes = parseInt(target.value) || 0
+                        setMinutes(minutes)
+                    }
+                }
+            />
+            <span>:</span>
+            <input
+                type="number"
+                className="TimeInputField"
+                maxLength={2}
+                size={2}
+                value={padZero(seconds)}
+                onChange={
+                    ({ target }) => {
+                        const seconds = parseInt(target.value) || 0
+                        setSeconds(seconds)
+                    }
+                }
+            />
+            {availableDuration &&
+                <span>{availableDuration.toFormat("hh:mm:ss")}</span>
+            }
         </div>
     )
 }
@@ -96,13 +223,16 @@ function Timer(props: ITimerDef) {
     const [elapsed, setElapsed] = useState<Duration>(Duration.fromMillis(0))
 
     const addTimer = (def: ITimerDef) => {
+        console.log("Adding timer", def)
         setTimers([...timers, def])
     }
 
     const currentSegment = started ? props.currentTime.diff(started) : Duration.fromMillis(0)
     const timeRemaining = props.totalTime.minus(currentSegment.plus(elapsed))
+    const childrenTime: Duration = timers.reduce((acc, tdef) => acc.plus(tdef.totalTime), Duration.fromMillis(0)).shiftTo("milliseconds")
 
-    if (timeRemaining.milliseconds < 10) {
+    if (timeRemaining.shiftTo("milliseconds").milliseconds < 10 && started) {
+        console.log("Time remaining is less than 10ms", timeRemaining)
         setStarted(undefined)
         setElapsed(Duration.fromMillis(0))
     }
@@ -117,6 +247,9 @@ function Timer(props: ITimerDef) {
     const stopTimer = () => {
         setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
         setStarted(undefined)
+        if (childRunning !== undefined) {
+            setChildRunning("__STOP__")
+        }
         props.triggerStop && props.triggerStop()
     }
 
@@ -124,7 +257,6 @@ function Timer(props: ITimerDef) {
         setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
         setStarted(undefined)
     }
-
 
     return (
         <li className="Timer">
@@ -154,7 +286,7 @@ function Timer(props: ITimerDef) {
                     <Timer
                         key={def.name}
                         name={def.name}
-                        totalTime={def.totalTime}
+                        totalTime={def.totalTime.shiftTo("milliseconds")}
                         currentTime={props.currentTime}
 
                         triggerStart={() => {
@@ -173,7 +305,13 @@ function Timer(props: ITimerDef) {
                     />)
                 )}
                 {addDialogOpen || <button onClick={() => setAddDialogOpen(true)}>+</button>}
-                {addDialogOpen && <AddTimerDialog addTimer={addTimer} onCancel={() => setAddDialogOpen(false)} />}
+                {addDialogOpen &&
+                    <AddTimerDialog
+                        addTimer={addTimer}
+                        maxDuration={props.totalTime.minus(childrenTime)}
+                        onCancel={() => setAddDialogOpen(false)}
+                    />
+                }
             </ul>
             }
         </li>

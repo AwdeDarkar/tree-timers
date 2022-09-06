@@ -2,8 +2,11 @@ import React, { useState, useEffect } from "react"
 
 import AccountTreeTwoToneIcon from "@mui/icons-material/AccountTreeTwoTone"
 import AccountTreeIcon from "@mui/icons-material/AccountTree"
+import ReplayIcon from "@mui/icons-material/Replay"
+import { Add } from "@mui/icons-material"
+import { Delete } from "@mui/icons-material"
 
-import { SemiCircle, PlayButton, PauseCircle } from "./svgTools"
+import { SemiCircle, PlayButton, PauseCircle, FinishedBox } from "./svgTools"
 
 import { DateTime, Duration } from "luxon"
 
@@ -210,16 +213,17 @@ interface ITimerDef {
 
     triggerStart?: () => void
     triggerStop?: () => void
+    onDelete?: () => void
     siblingRunning?: string
 }
 
 function Timer(props: ITimerDef) {
     const [timers, setTimers] = useState<ITimerDef[]>([])
     const [expanded, setExpanded] = useState<boolean>(false)
-    const [optionsOpen, setOptionsOpen] = useState<boolean>(false)
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
     const [childRunning, setChildRunning] = useState<string | undefined>(undefined)
     const [started, setStarted] = useState<DateTime | undefined>(undefined)
+    const [finished, setFinished] = useState<boolean>(false)
     const [elapsed, setElapsed] = useState<Duration>(Duration.fromMillis(0))
 
     const addTimer = (def: ITimerDef) => {
@@ -230,11 +234,13 @@ function Timer(props: ITimerDef) {
     const currentSegment = started ? props.currentTime.diff(started) : Duration.fromMillis(0)
     const timeRemaining = props.totalTime.minus(currentSegment.plus(elapsed))
     const childrenTime: Duration = timers.reduce((acc, tdef) => acc.plus(tdef.totalTime), Duration.fromMillis(0)).shiftTo("milliseconds")
+    const unallocatedTime = props.totalTime.minus(childrenTime)
 
     if (timeRemaining.shiftTo("milliseconds").milliseconds < 10 && started) {
         console.log("Time remaining is less than 10ms", timeRemaining)
         setStarted(undefined)
-        setElapsed(Duration.fromMillis(0))
+        setFinished(true)
+        props.triggerStop && props.triggerStop()
     }
 
     const toggleExpanded = () => { setExpanded(!expanded) }
@@ -263,6 +269,8 @@ function Timer(props: ITimerDef) {
             <h2>
                 <TimerControl
                     running={started !== undefined}
+                    finished={finished}
+                    startable={props.totalTime.minus(childrenTime).shiftTo("milliseconds").milliseconds > 0}
                     percentRemaining={timeRemaining.milliseconds / props.totalTime.milliseconds}
                     onStart={startTimer}
                     onStop={stopTimer}
@@ -279,7 +287,24 @@ function Timer(props: ITimerDef) {
                         onClick={toggleExpanded}
                     />
                 }
-                {" " + timeRemaining.toFormat("hh:mm:ss")}
+                {` ${(finished) ? "00:00:00" : timeRemaining.toFormat("hh:mm:ss")}`}
+                {props.totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds > 0 &&
+                    <ReplayIcon
+                        className="IconButton"
+                        onClick={() => {
+                            setElapsed(Duration.fromMillis(0))
+                            if (started) {
+                                setStarted(props.currentTime)
+                            }
+                        }}
+                    />
+                }
+                {props.onDelete &&
+                    <Delete
+                        className="IconButton"
+                        onClick={props.onDelete}
+                    />
+                }
             </h2>
             {expanded && <ul className="TimerList">
                 {timers.map(def => (
@@ -301,14 +326,25 @@ function Timer(props: ITimerDef) {
                                 stopTimer()
                             }
                         }}
+                        onDelete={() => {
+                            setTimers(timers.filter(t => t.name !== def.name))
+                        }}
                         siblingRunning={childRunning}
                     />)
                 )}
-                {addDialogOpen || <button onClick={() => setAddDialogOpen(true)}>+</button>}
+                {addDialogOpen || (unallocatedTime.shiftTo("milliseconds").milliseconds > 0 &&
+                    <div>
+                        <Add
+                            className="IconButton"
+                            onClick={() => setAddDialogOpen(true)}
+                        />
+                        {` Add Timer (unallocated: ${unallocatedTime.toFormat("hh:mm:ss")})`}
+                    </div>
+                )}
                 {addDialogOpen &&
                     <AddTimerDialog
                         addTimer={addTimer}
-                        maxDuration={props.totalTime.minus(childrenTime)}
+                        maxDuration={unallocatedTime}
                         onCancel={() => setAddDialogOpen(false)}
                     />
                 }
@@ -319,12 +355,34 @@ function Timer(props: ITimerDef) {
 }
 
 function TimerControl(props: {
-        running: boolean, percentRemaining: number, onStart: () => void, onStop: () => void}
+        running: boolean, finished: boolean, startable: boolean,
+        percentRemaining: number,
+        onStart: () => void, onStop: () => void}
     ) {
-    const { running, percentRemaining, onStart, onStop } = props
+    const { running, finished, startable, percentRemaining, onStart, onStop } = props
     const [hovering, setHovering] = useState<boolean>(false)
 
     const radius = 8
+
+    if (finished) {
+        return (
+            <span className="TimerControl"
+                style={{ cursor: "not-allowed" }}
+            >
+                <FinishedBox radius={radius} fill="#48A0B8" />
+            </span>
+        )
+    }
+
+    if (!startable && !running) {
+        return (
+            <span className="TimerControl"
+                style={{ cursor: "not-allowed" }}
+            >
+                <FinishedBox radius={radius} fill="#61DAFB" />
+            </span>
+        )
+    }
 
     return (
         <span className="TimerControl"

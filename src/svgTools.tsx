@@ -119,6 +119,30 @@ export function PlayButton(props: { radius: number, fill: string }) {
     )
 }
 
+export function FinishedBox(props: { radius: number, fill: string }) {
+    const { radius, fill } = props
+
+    const sideLength = radius / Math.sqrt(2)
+    const corner = { // Top left corner of the square
+        x: radius - sideLength / 2,
+        y: radius - sideLength / 2
+    }
+
+    return (
+        <svg
+            width={radius * 2}
+            height={radius * 2}
+        >
+            <rect
+                x={corner.x} y={corner.y}
+                width={sideLength} height={sideLength}
+                fill={fill}
+                transform={`rotate(45 ${radius} ${radius})`}
+            />
+        </svg>
+    )
+}
+
 export function PauseCircle(props: { radius: number, fill: string, percent: number }) {
     const { radius, fill, percent } = props
 

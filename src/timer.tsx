@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react"
 
+import { v4 } from "uuid"
+
 import AccountTreeTwoToneIcon from "@mui/icons-material/AccountTreeTwoTone"
 import AccountTreeIcon from "@mui/icons-material/AccountTree"
 import ReplayIcon from "@mui/icons-material/Replay"
@@ -9,6 +11,12 @@ import { Delete } from "@mui/icons-material"
 import { SemiCircle, PlayButton, PauseCircle, FinishedBox } from "./svgTools"
 
 import { DateTime, Duration } from "luxon"
+
+type UUID = string
+
+function uuidv4(): UUID {
+    return v4()
+}
 
 export function TimerPage(props: {}) {
     const [timers, setTimers] = useState<ITimerDef[]>([])
@@ -33,7 +41,8 @@ export function TimerPage(props: {}) {
             <ul className="TimerList">
                 {timers.map(def => (
                     <Timer
-                        key={def.name}
+                        key={def.id}
+                        id={def.id}
                         name={def.name}
                         totalTime={def.totalTime.shiftTo("milliseconds")}
                         currentTime={currentTime}
@@ -81,7 +90,7 @@ function AddTimerDialog(props: {
                     <button
                         onClick={() => {
                             console.log("Adding timer", name, totalTime)
-                            addTimer({ name, totalTime: totalTime || Duration.fromMillis(0), currentTime: DateTime.local() })
+                            addTimer({ id: uuidv4(), name, totalTime: totalTime || Duration.fromMillis(0), currentTime: DateTime.local() })
                             onCancel()
                         }}>
                         Add
@@ -207,6 +216,7 @@ function DurationInput(props: {
 }
 
 interface ITimerDef {
+    id: UUID
     name: string
     totalTime: Duration
     currentTime: DateTime
@@ -214,14 +224,14 @@ interface ITimerDef {
     triggerStart?: () => void
     triggerStop?: () => void
     onDelete?: () => void
-    siblingRunning?: string
+    siblingRunning?: UUID
 }
 
 function Timer(props: ITimerDef) {
     const [timers, setTimers] = useState<ITimerDef[]>([])
     const [expanded, setExpanded] = useState<boolean>(false)
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
-    const [childRunning, setChildRunning] = useState<string | undefined>(undefined)
+    const [childRunning, setChildRunning] = useState<UUID | undefined>(undefined)
     const [started, setStarted] = useState<DateTime | undefined>(undefined)
     const [finished, setFinished] = useState<boolean>(false)
     const [elapsed, setElapsed] = useState<Duration>(Duration.fromMillis(0))
@@ -254,12 +264,12 @@ function Timer(props: ITimerDef) {
         setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
         setStarted(undefined)
         if (childRunning !== undefined) {
-            setChildRunning("__STOP__")
+            setChildRunning("__NONE__" as UUID)
         }
         props.triggerStop && props.triggerStop()
     }
 
-    if (props.siblingRunning && props.siblingRunning !== props.name && started) {
+    if (props.siblingRunning && props.siblingRunning !== props.id && started) {
         setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
         setStarted(undefined)
     }
@@ -309,13 +319,14 @@ function Timer(props: ITimerDef) {
             {expanded && <ul className="TimerList">
                 {timers.map(def => (
                     <Timer
-                        key={def.name}
+                        key={def.id}
+                        id={def.id}
                         name={def.name}
                         totalTime={def.totalTime.shiftTo("milliseconds")}
                         currentTime={props.currentTime}
 
                         triggerStart={() => {
-                            setChildRunning(def.name)
+                            setChildRunning(def.id)
                             if (started === undefined) {
                                 startTimer()
                             }
@@ -327,7 +338,7 @@ function Timer(props: ITimerDef) {
                             }
                         }}
                         onDelete={() => {
-                            setTimers(timers.filter(t => t.name !== def.name))
+                            setTimers(timers.filter(t => t.id !== def.id))
                         }}
                         siblingRunning={childRunning}
                     />)

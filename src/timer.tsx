@@ -5,7 +5,7 @@ import { v4 } from "uuid"
 import AccountTreeTwoToneIcon from "@mui/icons-material/AccountTreeTwoTone"
 import AccountTreeIcon from "@mui/icons-material/AccountTree"
 import ReplayIcon from "@mui/icons-material/Replay"
-import { Add } from "@mui/icons-material"
+import { Add, CheckBoxOutlineBlank, DisabledByDefault, CheckBox } from "@mui/icons-material"
 import { Delete } from "@mui/icons-material"
 
 import { SemiCircle, PlayButton, PauseCircle, FinishedBox } from "./svgTools"
@@ -23,6 +23,9 @@ export function TimerPage(props: {}) {
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<DateTime>(DateTime.local())
 
+    const [notificationsActive, setNotificationsActive] = useState<boolean>(false)
+    const [notificationsPermitted, setNotificationsPermitted] = useState<NotificationPermission>("default")
+
     const addTimer = (def: ITimerDef) => {
         console.log("Adding timer", def)
         setTimers([...timers, def])
@@ -38,6 +41,34 @@ export function TimerPage(props: {}) {
     return (
         <div className="TimerPage">
             <h1>Timer Page</h1>
+            <table>
+                <tr>
+                    <td>Notifications?</td>
+                    <td>
+                        {(!notificationsActive) ?
+                            ((notificationsPermitted !== "denied") ?
+                                <CheckBoxOutlineBlank
+                                    className="IconButton"
+                                    onClick={() => {
+                                        if (notificationsPermitted === "default") {
+                                            Notification.requestPermission().then((result) => {
+                                                setNotificationsPermitted(result)
+                                                setNotificationsActive(result === "granted")
+                                            })
+                                        } else {
+                                            setNotificationsActive(true)
+                                        }
+                                    }}
+                                /> :
+                                <DisabledByDefault />) :
+                            <CheckBox
+                                className="IconButton"
+                                onClick={() => setNotificationsActive(false)}
+                            />
+                        }
+                    </td>
+                </tr>
+            </table>
             <ul className="TimerList">
                 {timers.map(def => (
                     <Timer
@@ -46,6 +77,7 @@ export function TimerPage(props: {}) {
                         name={def.name}
                         totalTime={def.totalTime.shiftTo("milliseconds")}
                         currentTime={currentTime}
+                        notifyWhenFinished={notificationsActive}
                     />)
                 )}
             </ul>
@@ -224,6 +256,7 @@ interface ITimerDef {
     triggerStart?: () => void
     triggerStop?: () => void
     onDelete?: () => void
+    notifyWhenFinished?: boolean
     siblingRunning?: UUID
 }
 
@@ -247,7 +280,9 @@ function Timer(props: ITimerDef) {
     const unallocatedTime = props.totalTime.minus(childrenTime)
 
     if (timeRemaining.shiftTo("milliseconds").milliseconds < 10 && started) {
-        console.log("Time remaining is less than 10ms", timeRemaining)
+        if (props.notifyWhenFinished) {
+            new Notification("Timer finished", { body: props.name })
+        }
         setStarted(undefined)
         setFinished(true)
         props.triggerStop && props.triggerStop()
@@ -298,11 +333,12 @@ function Timer(props: ITimerDef) {
                     />
                 }
                 {` ${(finished) ? "00:00:00" : timeRemaining.toFormat("hh:mm:ss")}`}
-                {props.totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds > 0 &&
+                {props.totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds >= 0 &&
                     <ReplayIcon
                         className="IconButton"
                         onClick={() => {
                             setElapsed(Duration.fromMillis(0))
+                            setFinished(false)
                             if (started) {
                                 setStarted(props.currentTime)
                             }
@@ -341,6 +377,7 @@ function Timer(props: ITimerDef) {
                             setTimers(timers.filter(t => t.id !== def.id))
                         }}
                         siblingRunning={childRunning}
+                        notifyWhenFinished={props.notifyWhenFinished || false}
                     />)
                 )}
                 {addDialogOpen || (unallocatedTime.shiftTo("milliseconds").milliseconds > 0 &&

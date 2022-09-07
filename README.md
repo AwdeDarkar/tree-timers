@@ -1,6 +1,9 @@
-# Getting Started with Create React App
+# Tree Timers
+This is an experiment in hierarchical timers and also a project to help myself get more comfortable
+with typescript in react.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The timers are meant to work as a kind of 'todo' list where a parent timer is a task and children
+are sub-tasks.
 
 ## Available Scripts
 
@@ -40,6 +43,8 @@ Instead, it will copy all the configuration files and the transitive dependencie
 You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
 ## Learn More
+
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 

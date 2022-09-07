@@ -1,6 +1,8 @@
 {
-  "name": "react-timers",
+  "name": "tree-timers",
   "version": "0.1.0",
+  "license": "MIT",
+  "author": "Benjamin Croisdale",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.4",

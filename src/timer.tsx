@@ -18,23 +18,73 @@ function uuidv4(): UUID {
     return v4()
 }
 
+interface CustomSerializable<T> {
+    stringify: (value: T) => string
+    parse: (value: string) => T
+}
+
+const defaultSerializer: CustomSerializable<any> = {
+    stringify: (value: any) => (typeof value === "string") ? `"${value}"` : JSON.stringify(value),
+    parse: (value: string) => JSON.parse(value)
+}
+
+const datetimeMaybeSerializer: CustomSerializable<DateTime | undefined> = {
+    stringify: (value: DateTime | undefined) => (value === undefined) ? "\"undefined\"" : value.toISO(),
+    parse: (value: string) => (value === "\"undefined\"") ? undefined : DateTime.fromISO(value)
+}
+
+const durationSerializer: CustomSerializable<Duration> = {
+    stringify: (value: Duration) => value.shiftTo("milliseconds").milliseconds.toString(),
+    parse: (value: string) => Duration.fromMillis(parseInt(value)).shiftTo("hours", "minutes", "seconds")
+}
+
+function useLocalStorage<T>(
+        storageKey: string, defaultValue: T,
+        serialization: CustomSerializable<T> = defaultSerializer
+    ): [T, (newValue: T) => void, () => void] {
+    const [value, setValue] = useState(() => {
+        const jsonValue = localStorage.getItem(storageKey)
+        if (jsonValue != null) return serialization.parse(jsonValue)
+        if (typeof defaultValue === "function") {
+            return defaultValue()
+        } else {
+            return defaultValue
+        }
+    })
+
+    const updateValue = (newValue: T) => {
+        setValue(newValue)
+        localStorage.setItem(storageKey, serialization.stringify(newValue))
+    }
+
+    const clearValue = () => {
+        localStorage.removeItem(storageKey)
+    }
+
+    return [value, updateValue, clearValue]
+}
+
 export function TimerPage(props: {}) {
-    const [timers, setTimers] = useState<ITimerDef[]>([])
+    function usePageStore<T>(stateName: string, defaultValue: T): [T, (newValue: T) => void, () => void] {
+        return useLocalStorage<T>(`root-${stateName}`, defaultValue)
+    }
+
+    const [timerIDs, setTimerIDs, _] = usePageStore<UUID[]>("timers", [])
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<DateTime>(DateTime.local())
 
     const [notificationsActive, setNotificationsActive] = useState<boolean>(false)
     const [notificationsPermitted, setNotificationsPermitted] = useState<NotificationPermission>("default")
 
-    const addTimer = (def: ITimerDef) => {
-        console.log("Adding timer", def)
-        setTimers([...timers, def])
+    const addTimer = (timer: TimerData) => {
+        setTimerIDs([...timerIDs, timer.id])
+        saveTimer(timer)
     }
 
-    useEffect(() => { // Update the time twice a second
+    useEffect(() => { // Update the time once a second
         const interval = setInterval(() => {
             setCurrentTime(DateTime.local())
-        }, 500)
+        }, 1000)
         return () => clearInterval(interval)
     }, [])
 
@@ -70,18 +120,24 @@ export function TimerPage(props: {}) {
                 </tr>
             </table>
             <ul className="TimerList">
-                {timers.map(def => (
+                {timerIDs.map(id => (
                     <Timer
-                        key={def.id}
-                        id={def.id}
-                        name={def.name}
-                        totalTime={def.totalTime.shiftTo("milliseconds")}
+                        key={id}
+                        id={id}
+                        onDelete={() => {
+                            setTimerIDs(timerIDs.filter((tid) => tid !== id))
+                        }}
                         currentTime={currentTime}
                         notifyWhenFinished={notificationsActive}
                     />)
                 )}
             </ul>
-            {addDialogOpen || <button onClick={() => setAddDialogOpen(true)}>+</button>}
+            {addDialogOpen || (
+                <Add
+                    className="IconButton"
+                    onClick={() => setAddDialogOpen(true)}
+                />
+            )}
             {addDialogOpen && <AddTimerDialog addTimer={addTimer} onCancel={() => setAddDialogOpen(false)} />}
         </div>
     )
@@ -89,10 +145,11 @@ export function TimerPage(props: {}) {
 
 function AddTimerDialog(props: {
         maxDuration?: Duration,
-        addTimer: (def: ITimerDef) => void,
+        parentID?: UUID,
+        addTimer: (timer: TimerData) => void,
         onCancel: () => void
     }) {
-    const { addTimer, onCancel } = props
+    const { addTimer, onCancel, parentID } = props
 
     const [name, setName] = useState<string>("")
     const [totalTime, setTotalTime] = useState<Duration|undefined>(undefined)
@@ -121,8 +178,13 @@ function AddTimerDialog(props: {
                 <td>
                     <button
                         onClick={() => {
-                            console.log("Adding timer", name, totalTime)
-                            addTimer({ id: uuidv4(), name, totalTime: totalTime || Duration.fromMillis(0), currentTime: DateTime.local() })
+                            addTimer({
+                                id: uuidv4(),
+                                name,
+                                totalTime: totalTime || Duration.fromMillis(0),
+                                parentID: parentID || "root",
+                                childrenIDs: [],
+                            })
                             onCancel()
                         }}>
                         Add
@@ -247,41 +309,80 @@ function DurationInput(props: {
     )
 }
 
-interface ITimerDef {
+interface TimerData {
     id: UUID
     name: string
     totalTime: Duration
-    currentTime: DateTime
-
-    triggerStart?: () => void
-    triggerStop?: () => void
-    onDelete?: () => void
-    notifyWhenFinished?: boolean
-    siblingRunning?: UUID
+    parentID: UUID | "root"
+    childrenIDs: UUID[]
 }
 
-function Timer(props: ITimerDef) {
-    const [timers, setTimers] = useState<ITimerDef[]>([])
-    const [expanded, setExpanded] = useState<boolean>(false)
-    const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
-    const [childRunning, setChildRunning] = useState<UUID | undefined>(undefined)
-    const [started, setStarted] = useState<DateTime | undefined>(undefined)
-    const [finished, setFinished] = useState<boolean>(false)
-    const [elapsed, setElapsed] = useState<Duration>(Duration.fromMillis(0))
+function getTimerDuration(id: UUID): Duration {
+    return durationSerializer.parse(
+        localStorage.getItem(`${id}-totalTime`) || "0"
+    )
+}
 
-    const addTimer = (def: ITimerDef) => {
-        console.log("Adding timer", def)
-        setTimers([...timers, def])
+function saveTimer(timer: TimerData) {
+    localStorage.setItem(`${timer.id}-name`, defaultSerializer.stringify(timer.name))
+    localStorage.setItem(`${timer.id}-totalTime`, durationSerializer.stringify(timer.totalTime))
+    localStorage.setItem(`${timer.id}-parentID`, defaultSerializer.stringify(timer.parentID))
+    localStorage.setItem(`${timer.id}-childrenIDs`, defaultSerializer.stringify(timer.childrenIDs))
+}
+
+function Timer(props: {
+        id: UUID,
+        currentTime: DateTime,
+        triggerStart?: () => void,
+        triggerStop?: () => void,
+        onDelete?: () => void,
+        notifyWhenFinished?: boolean,
+        siblingRunning?: UUID,
+    }) {
+
+    function useUUIDStore<T>(stateName: string, defaultValue: T, serializer: CustomSerializable<T> = defaultSerializer): [T, (newValue: T) => void, () => void] {
+        return useLocalStorage<T>(`${props.id}-${stateName}`, defaultValue, serializer)
     }
 
-    const currentSegment = started ? props.currentTime.diff(started) : Duration.fromMillis(0)
-    const timeRemaining = props.totalTime.minus(currentSegment.plus(elapsed))
-    const childrenTime: Duration = timers.reduce((acc, tdef) => acc.plus(tdef.totalTime), Duration.fromMillis(0)).shiftTo("milliseconds")
-    const unallocatedTime = props.totalTime.minus(childrenTime)
+    const [name, setName, clearName] = useUUIDStore<string>("name", "unnamed")
+    const [totalTime, setTotalTime, clearTotalTime] = useUUIDStore<Duration>("totalTime", Duration.fromMillis(0), durationSerializer)
+    const [parentID, setParentID, clearParentID] = useUUIDStore<UUID|"root">("parentID", "root")
+    const [childrenIDs, setChildrenIDs, clearChildrenIDs] = useUUIDStore<UUID[]>("childrenIDs", [])
+
+    const [childRunning, setChildRunning, clearChildRunning] = useUUIDStore<UUID | undefined>("childRunning", undefined)
+    const [started, setStarted, clearStarted] = useUUIDStore<DateTime | undefined>("started", undefined, datetimeMaybeSerializer)
+    const [finished, setFinished, clearFinished] = useUUIDStore<boolean>("finished", false)
+    const [elapsed, setElapsed, clearElapsed] = useUUIDStore<Duration>("elapsed", Duration.fromMillis(0), durationSerializer)
+
+    const [expanded, setExpanded] = useState<boolean>(false)
+    const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
+
+    const addTimer = (timer: TimerData) => {
+        saveTimer(timer)
+        setChildrenIDs([...childrenIDs, timer.id])
+    }
+
+    const clearSelf = () => {
+        clearName()
+        clearTotalTime()
+        clearParentID()
+        clearChildrenIDs()
+        clearChildRunning()
+        clearStarted()
+        clearFinished()
+        clearElapsed()
+    }
+
+    const currentSegment = (started !== undefined) ? props.currentTime.diff(started) : Duration.fromMillis(0)
+    const timeRemaining = totalTime.minus(currentSegment.plus(elapsed))
+    const childrenTime: Duration = childrenIDs.reduce(
+        (acc, cid) => acc.plus(getTimerDuration(cid)), Duration.fromMillis(0))
+        .shiftTo("milliseconds")
+    const unallocatedTime = totalTime.minus(childrenTime)
 
     if (timeRemaining.shiftTo("milliseconds").milliseconds < 10 && started) {
         if (props.notifyWhenFinished) {
-            new Notification("Timer finished", { body: props.name })
+            new Notification("Timer finished", { body: name })
         }
         setStarted(undefined)
         setFinished(true)
@@ -315,12 +416,12 @@ function Timer(props: ITimerDef) {
                 <TimerControl
                     running={started !== undefined}
                     finished={finished}
-                    startable={props.totalTime.minus(childrenTime).shiftTo("milliseconds").milliseconds > 0}
-                    percentRemaining={timeRemaining.milliseconds / props.totalTime.milliseconds}
+                    startable={totalTime.minus(childrenTime).shiftTo("milliseconds").milliseconds > 0}
+                    percentRemaining={timeRemaining.shiftTo("milliseconds").milliseconds / totalTime.shiftTo("milliseconds").milliseconds}
                     onStart={startTimer}
                     onStop={stopTimer}
                 />
-                {` ${props.name} `}
+                {` ${name} `}
                 {expanded ?
                     <AccountTreeIcon
                         className="IconButton"
@@ -333,7 +434,7 @@ function Timer(props: ITimerDef) {
                     />
                 }
                 {` ${(finished) ? "00:00:00" : timeRemaining.toFormat("hh:mm:ss")}`}
-                {props.totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds >= 0 &&
+                {totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds >= 0 &&
                     <ReplayIcon
                         className="IconButton"
                         onClick={() => {
@@ -348,21 +449,22 @@ function Timer(props: ITimerDef) {
                 {props.onDelete &&
                     <Delete
                         className="IconButton"
-                        onClick={props.onDelete}
+                        onClick={() => {
+                            clearSelf()
+                            props.onDelete && props.onDelete()
+                        }}
                     />
                 }
             </h2>
             {expanded && <ul className="TimerList">
-                {timers.map(def => (
+                {childrenIDs.map(cid => (
                     <Timer
-                        key={def.id}
-                        id={def.id}
-                        name={def.name}
-                        totalTime={def.totalTime.shiftTo("milliseconds")}
+                        key={cid}
+                        id={cid}
                         currentTime={props.currentTime}
 
                         triggerStart={() => {
-                            setChildRunning(def.id)
+                            setChildRunning(cid)
                             if (started === undefined) {
                                 startTimer()
                             }
@@ -374,7 +476,7 @@ function Timer(props: ITimerDef) {
                             }
                         }}
                         onDelete={() => {
-                            setTimers(timers.filter(t => t.id !== def.id))
+                            setChildrenIDs(childrenIDs.filter(id => id !== cid))
                         }}
                         siblingRunning={childRunning}
                         notifyWhenFinished={props.notifyWhenFinished || false}
@@ -393,6 +495,7 @@ function Timer(props: ITimerDef) {
                     <AddTimerDialog
                         addTimer={addTimer}
                         maxDuration={unallocatedTime}
+                        parentID={props.id}
                         onCancel={() => setAddDialogOpen(false)}
                     />
                 }

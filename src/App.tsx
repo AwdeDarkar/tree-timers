@@ -4,12 +4,10 @@ import TimerPage from './TimerPage'
 
 import './App.css'
 
-function App() {
-  return (
-    <div className="App">
-      <TimerPage />
-    </div>
-  );
+export default function App() {
+    return (
+        <div className="App">
+            <TimerPage />
+        </div>
+    )
 }
-
-export default App;

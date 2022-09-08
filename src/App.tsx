@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { TimerPage } from './timer'
+import TimerPage from './TimerPage'
 
 import './App.css'
 

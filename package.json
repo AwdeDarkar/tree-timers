@@ -1,6 +1,6 @@
 {
   "name": "tree-timers",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "author": "Benjamin Croisdale",
   "homepage": "https://AwdeDarkar.github.io/tree-timers",
@@ -53,27 +53,27 @@
       "react-app/jest"
     ],
     "plugins": [
-        "jsdoc"
+      "jsdoc"
     ],
     "parserOptions": {
       "project": "./tsconfig.json"
     },
     "settings": {
-        "import/resolver": {
-            "node": {
-                "extensions": [
-                    ".js",
-                    ".ts",
-                    ".jsx",
-                    ".tsx"
-                ]
-            }
+      "import/resolver": {
+        "node": {
+          "extensions": [
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx"
+          ]
         }
+      }
     },
     "rules": {
       "import/extensions": [
-          "error",
-          "never"
+        "error",
+        "never"
       ],
       "semi": [
         "error",
@@ -92,13 +92,13 @@
         4
       ],
       "react/jsx-filename-extension": [
-          "error",
-          {
-              "extensions": [
-                  ".jsx",
-                  ".tsx"
-              ]
-          }
+        "error",
+        {
+          "extensions": [
+            ".jsx",
+            ".tsx"
+          ]
+        }
       ],
       "react/require-default-props": 0,
       "jsx-a11y/label-has-associated-control": 0,

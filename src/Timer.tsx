@@ -3,7 +3,7 @@ import React, { useState } from "react"
 import AccountTreeTwoToneIcon from "@mui/icons-material/AccountTreeTwoTone"
 import AccountTreeIcon from "@mui/icons-material/AccountTree"
 import ReplayIcon from "@mui/icons-material/Replay"
-import { Add, Delete  } from "@mui/icons-material"
+import { Add, Delete } from "@mui/icons-material"
 
 import { DateTime, Duration } from "luxon"
 
@@ -15,8 +15,22 @@ import {
 } from "./localStorageTools"
 import { TimerData, saveTimer, getTimerDuration } from "./timerUtils"
 import { AddTimerDialog } from "./TimerDialogs"
-import { PauseCircle, PlayButton, SemiCircle, FinishedBox } from "./svgTools"
+import {
+    PauseCircle, PlayButton,
+    SemiCircle, FinishedBox,
+} from "./svgTools"
 
+/**
+ *
+ * @param props
+ * @param props.id
+ * @param props.currentTime
+ * @param props.triggerStart
+ * @param props.triggerStop
+ * @param props.onDelete
+ * @param props.notifyWhenFinished
+ * @param props.siblingRunning
+ */
 export default function Timer(props: {
         id: UUID,
         currentTime: DateTime,
@@ -26,9 +40,25 @@ export default function Timer(props: {
         notifyWhenFinished?: boolean,
         siblingRunning?: UUID,
     }) {
+    const {
+        id, currentTime,
+        triggerStart, triggerStop,
+        onDelete, notifyWhenFinished,
+        siblingRunning,
+    } = props
 
-    function useUUIDStore<T>(stateName: string, defaultValue: T, serializer: CustomSerializable<T> = defaultSerializer): [T, (newValue: T) => void, () => void] {
-        return useLocalStorage<T>(`${props.id}-${stateName}`, defaultValue, serializer)
+    /**
+     *
+     * @param stateName
+     * @param defaultValue
+     * @param serializer
+     */
+    function useUUIDStore<T>(
+        stateName: string,
+        defaultValue: T,
+        serializer: CustomSerializable<T> = defaultSerializer,
+    ): [T, (newValue: T) => void, () => void] {
+        return useLocalStorage<T>(`${id}-${stateName}`, defaultValue, serializer)
     }
 
     const [name, setName, clearName] = useUUIDStore<string>("name", "unnamed")
@@ -60,40 +90,45 @@ export default function Timer(props: {
         clearElapsed()
     }
 
-    const currentSegment = (started !== undefined) ? props.currentTime.diff(started) : Duration.fromMillis(0)
+    const currentSegment = (started !== undefined)
+        ? currentTime.diff(started)
+        : Duration.fromMillis(0)
+
     const timeRemaining = totalTime.minus(currentSegment.plus(elapsed))
-    const childrenTime: Duration = childrenIDs.reduce(
-        (acc, cid) => acc.plus(getTimerDuration(cid)), Duration.fromMillis(0))
-        .shiftTo("milliseconds")
+
+    const childrenTime: Duration = childrenIDs.reduce((acc: Duration, cid: UUID) => (
+        acc.plus(getTimerDuration(cid))
+    ), Duration.fromMillis(0)).shiftTo("milliseconds")
+
     const unallocatedTime = totalTime.minus(childrenTime)
 
     if (timeRemaining.shiftTo("milliseconds").milliseconds < 10 && started) {
-        if (props.notifyWhenFinished) {
-            new Notification("Timer finished", { body: name })
+        if (notifyWhenFinished) {
+            new Notification("Timer finished", { body: name }) // eslint-disable-line no-new
         }
         setStarted(undefined)
         setFinished(true)
-        props.triggerStop && props.triggerStop()
+        triggerStop && triggerStop()
     }
 
     const toggleExpanded = () => { setExpanded(!expanded) }
 
     const startTimer = () => {
-        setStarted(props.currentTime)
-        props.triggerStart && props.triggerStart()
+        setStarted(currentTime)
+        triggerStart && triggerStart()
     }
 
     const stopTimer = () => {
-        setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
+        setElapsed(elapsed.plus(currentTime.diff(started || DateTime.local())))
         setStarted(undefined)
         if (childRunning !== undefined) {
             setChildRunning("__NONE__" as UUID)
         }
-        props.triggerStop && props.triggerStop()
+        triggerStop && triggerStop()
     }
 
-    if (props.siblingRunning && props.siblingRunning !== props.id && started) {
-        setElapsed(elapsed.plus(props.currentTime.diff(started || DateTime.local())))
+    if (siblingRunning && siblingRunning !== id && started) {
+        setElapsed(elapsed.plus(currentTime.diff(started || DateTime.local())))
         setStarted(undefined)
     }
 
@@ -109,102 +144,125 @@ export default function Timer(props: {
                     onStop={stopTimer}
                 />
                 {` ${name} `}
-                {expanded ?
-                    <AccountTreeIcon
-                        className="IconButton"
-                        onClick={toggleExpanded}
-                    />
-                    :
-                    <AccountTreeTwoToneIcon
-                        className="IconButton"
-                        onClick={toggleExpanded}
-                    />
-                }
+                {expanded
+                    ? (
+                        <AccountTreeIcon
+                            className="IconButton"
+                            onClick={toggleExpanded}
+                        />
+                    )
+                    : (
+                        <AccountTreeTwoToneIcon
+                            className="IconButton"
+                            onClick={toggleExpanded}
+                        />
+                    )}
                 {` ${(finished) ? "00:00:00" : timeRemaining.toFormat("hh:mm:ss")}`}
-                {totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds >= 0 &&
-                    <ReplayIcon
-                        className="IconButton"
-                        onClick={() => {
-                            setElapsed(Duration.fromMillis(0))
-                            setFinished(false)
-                            if (started) {
-                                setStarted(props.currentTime)
-                            }
-                        }}
-                    />
-                }
-                {props.onDelete &&
+                {totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds >= 0
+                    && (
+                        <ReplayIcon
+                            className="IconButton"
+                            onClick={() => {
+                                setElapsed(Duration.fromMillis(0))
+                                setFinished(false)
+                                if (started) {
+                                    setStarted(currentTime)
+                                }
+                            }}
+                        />
+                    )}
+                {onDelete
+                && (
                     <Delete
                         className="IconButton"
                         onClick={() => {
                             clearSelf()
-                            props.onDelete && props.onDelete()
+                            onDelete && onDelete()
                         }}
                     />
-                }
+                )}
             </h2>
-            {expanded && <ul className="TimerList">
-                {childrenIDs.map(cid => (
-                    <Timer
-                        key={cid}
-                        id={cid}
-                        currentTime={props.currentTime}
-
-                        triggerStart={() => {
-                            setChildRunning(cid)
-                            if (started === undefined) {
-                                startTimer()
-                            }
-                        }}
-                        triggerStop={() => {
-                            setChildRunning(undefined)
-                            if (started !== undefined) {
-                                stopTimer()
-                            }
-                        }}
-                        onDelete={() => {
-                            setChildrenIDs(childrenIDs.filter(id => id !== cid))
-                        }}
-                        siblingRunning={childRunning}
-                        notifyWhenFinished={props.notifyWhenFinished || false}
-                    />)
-                )}
-                {addDialogOpen || (unallocatedTime.shiftTo("milliseconds").milliseconds > 0 &&
-                    <div>
-                        <Add
-                            className="IconButton"
-                            onClick={() => setAddDialogOpen(true)}
+            {expanded
+            && (
+                <ul className="TimerList">
+                    {childrenIDs.map((cid) => (
+                        (
+                            <Timer
+                                key={cid}
+                                id={cid}
+                                currentTime={currentTime}
+                                triggerStart={() => {
+                                    setChildRunning(cid)
+                                    if (started === undefined) {
+                                        startTimer()
+                                    }
+                                }}
+                                triggerStop={() => {
+                                    setChildRunning(undefined)
+                                    if (started !== undefined) {
+                                        stopTimer()
+                                    }
+                                }}
+                                onDelete={() => {
+                                    setChildrenIDs(childrenIDs.filter((_cid) => _cid !== cid))
+                                }}
+                                siblingRunning={childRunning}
+                                notifyWhenFinished={notifyWhenFinished || false}
+                            />
+                        )))}
+                    {addDialogOpen || (unallocatedTime.shiftTo("milliseconds").milliseconds > 0
+                    && (
+                        <div>
+                            <Add
+                                className="IconButton"
+                                onClick={() => setAddDialogOpen(true)}
+                            />
+                            {` Add Timer (unallocated: ${unallocatedTime.toFormat("hh:mm:ss")})`}
+                        </div>
+                    ))}
+                    {addDialogOpen
+                    && (
+                        <AddTimerDialog
+                            addTimer={addTimer}
+                            maxDuration={unallocatedTime}
+                            parentID={id}
+                            onCancel={() => setAddDialogOpen(false)}
                         />
-                        {` Add Timer (unallocated: ${unallocatedTime.toFormat("hh:mm:ss")})`}
-                    </div>
-                )}
-                {addDialogOpen &&
-                    <AddTimerDialog
-                        addTimer={addTimer}
-                        maxDuration={unallocatedTime}
-                        parentID={props.id}
-                        onCancel={() => setAddDialogOpen(false)}
-                    />
-                }
-            </ul>
-            }
+                    )}
+                </ul>
+            )}
         </li>
     )
 }
 
+/**
+ *
+ * @param props
+ * @param props.running
+ * @param props.finished
+ * @param props.startable
+ * @param props.percentRemaining
+ * @param props.onStart
+ * @param props.onStop
+ */
 function TimerControl(props: {
         running: boolean, finished: boolean, startable: boolean,
         percentRemaining: number,
-        onStart: () => void, onStop: () => void}
-    ) {
-    const { running, finished, startable, percentRemaining, onStart, onStop } = props
+        onStart: () => void, onStop: () => void}) {
+    const {
+        running, finished, startable,
+        percentRemaining,
+        onStart, onStop,
+    } = props
+
     const [hovering, setHovering] = useState<boolean>(false)
 
     const radius = 8
 
     if (finished) {
         return (
-            <span className="TimerControl"
+            <span
+                className="TimerControl"
                 style={{ cursor: "not-allowed" }}
             >
                 <FinishedBox radius={radius} fill="#48A0B8" />
@@ -214,7 +272,8 @@ function TimerControl(props: {
 
     if (!startable && !running) {
         return (
-            <span className="TimerControl"
+            <span
+                className="TimerControl"
                 style={{ cursor: "not-allowed" }}
             >
                 <FinishedBox radius={radius} fill="#61DAFB" />
@@ -223,20 +282,25 @@ function TimerControl(props: {
     }
 
     return (
-        <span className="TimerControl"
+        <span
+            className="TimerControl"
+            role="button"
+            tabIndex={0}
             style={{ cursor: "pointer" }}
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
-
             onClick={running ? onStop : onStart}
+            onKeyDown={running ? onStop : onStart}
         >
-            {(running) ? 
-                (hovering) ?
-                    <PauseCircle radius={radius} fill="#C9EFFB" percent={percentRemaining} /> :
-                    <SemiCircle radius={radius} fill="#61dafb" percent={percentRemaining} /> 
-                 :
+            {(running && hovering) && (
+                <PauseCircle radius={radius} fill="#C9EFFB" percent={percentRemaining} />
+            )}
+            {(running && !hovering) && (
+                <SemiCircle radius={radius} fill="#61dafb" percent={percentRemaining} />
+            )}
+            {(!running) && (
                 <PlayButton radius={radius} fill={(hovering) ? "#C9EFFB" : "#61dafb"} />
-            }
+            )}
         </span>
     )
 }

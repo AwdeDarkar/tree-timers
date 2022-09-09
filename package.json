@@ -54,7 +54,23 @@
     "parserOptions": {
       "project": "./tsconfig.json"
     },
+    "settings": {
+        "import/resolver": {
+            "node": {
+                "extensions": [
+                    ".js",
+                    ".ts",
+                    ".jsx",
+                    ".tsx"
+                ]
+            }
+        }
+    },
     "rules": {
+      "import/extensions": [
+          "error",
+          "never"
+      ],
       "semi": [
         "error",
         "never"
@@ -67,6 +83,21 @@
         "error",
         4
       ],
+      "react/jsx-indent-props": [
+        "error",
+        4
+      ],
+      "react/jsx-filename-extension": [
+          "error",
+          {
+              "extensions": [
+                  ".jsx",
+                  ".tsx"
+              ]
+          }
+      ],
+      "react/require-default-props": 0,
+      "jsx-a11y/label-has-associated-control": 0,
       "indent": [
         "error",
         4

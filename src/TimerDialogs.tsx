@@ -6,33 +6,59 @@ import type { UUID } from "./uuid"
 import { uuidv4 } from "./uuid"
 import { TimerData } from "./timerUtils"
 
+/**
+ *
+ * @param props
+ * @param props.maxDuration
+ * @param props.parentID
+ * @param props.addTimer
+ * @param props.onCancel
+ */
 export function AddTimerDialog(props: {
         maxDuration?: Duration,
         parentID?: UUID,
         addTimer: (timer: TimerData) => void,
         onCancel: () => void
     }) {
-    const { addTimer, onCancel, parentID } = props
+    const {
+        addTimer, onCancel, parentID, maxDuration,
+    } = props
 
     const [name, setName] = useState<string>("")
     const [totalTime, setTotalTime] = useState<Duration|undefined>(undefined)
 
+    const submit = () => {
+        addTimer({
+            id: uuidv4(),
+            name,
+            totalTime: totalTime || Duration.fromMillis(0),
+            parentID: parentID || "root",
+            childrenIDs: [],
+        })
+        onCancel()
+    }
+
     return (
         <table>
             <tr>
-                <td><label>Name</label></td>
+                <td>
+                    <label>Name</label>
+                </td>
                 <td>
                     <input
+                        type="text"
                         value={name}
                         onChange={({ target }) => setName(target.value)}
                     />
                 </td>
             </tr>
             <tr>
-                <td><label>Total Time</label></td>
+                <td>
+                    <label>Total Time</label>
+                </td>
                 <td>
                     <DurationInput
-                        maxDuration={props.maxDuration}
+                        maxDuration={maxDuration}
                         onChange={(time) => setTotalTime(Duration.fromObject(time))}
                     />
                 </td>
@@ -40,27 +66,27 @@ export function AddTimerDialog(props: {
             <tr>
                 <td>
                     <button
-                        onClick={() => {
-                            addTimer({
-                                id: uuidv4(),
-                                name,
-                                totalTime: totalTime || Duration.fromMillis(0),
-                                parentID: parentID || "root",
-                                childrenIDs: [],
-                            })
-                            onCancel()
-                        }}>
+                        type="submit"
+                        onClick={submit}
+                        onKeyDown={(e) => (e.key === "Enter") && submit()}
+                    >
                         Add
                     </button>
                 </td>
                 <td>
-                    <button onClick={onCancel}>Cancel</button>
+                    <button onClick={onCancel} type="button">Cancel</button>
                 </td>
             </tr>
         </table>
     )
 }
 
+/**
+ *
+ * @param props
+ * @param props.onChange
+ * @param props.maxDuration
+ */
 export function DurationInput(props: {
         onChange: (time: {hours: number, minutes: number, seconds: number}) => void,
         maxDuration?: Duration|undefined,
@@ -104,23 +130,25 @@ export function DurationInput(props: {
         setHours(0)
     }
     if (availableDuration && availableDuration.as("milliseconds") < 0) {
-        const { hours, minutes, seconds } = availableDuration
+        const {
+            hours: hoursAvailable, minutes: minutesAvailable, seconds: secondsAvailable,
+        } = availableDuration
             .plus(currentDuration)
             .shiftTo("hours", "minutes", "seconds")
             .toObject()
 
-        if (hours !== undefined) {
-            setHours(hours)
+        if (hoursAvailable !== undefined) {
+            setHours(hoursAvailable)
         }
-        if (minutes !== undefined) {
-            setMinutes(minutes)
+        if (minutesAvailable !== undefined) {
+            setMinutes(minutesAvailable)
         }
-        if (seconds !== undefined) {
-            setSeconds(seconds)
+        if (secondsAvailable !== undefined) {
+            setSeconds(secondsAvailable)
         }
     }
 
-    const padZero = (num: number) => num < 10 ? `0${num}` : String(num)
+    const padZero = (num: number) => (num < 10 ? `0${num}` : String(num))
 
     return (
         <div className="TimeInput">
@@ -132,8 +160,7 @@ export function DurationInput(props: {
                 value={padZero(hours)}
                 onChange={
                     ({ target }) => {
-                        const hours = parseInt(target.value) || 0
-                        setHours(hours)
+                        setHours(parseInt(target.value, 10) || 0)
                     }
                 }
             />
@@ -146,8 +173,7 @@ export function DurationInput(props: {
                 value={padZero(minutes)}
                 onChange={
                     ({ target }) => {
-                        const minutes = parseInt(target.value) || 0
-                        setMinutes(minutes)
+                        setMinutes(parseInt(target.value, 10) || 0)
                     }
                 }
             />
@@ -160,14 +186,12 @@ export function DurationInput(props: {
                 value={padZero(seconds)}
                 onChange={
                     ({ target }) => {
-                        const seconds = parseInt(target.value) || 0
-                        setSeconds(seconds)
+                        setSeconds(parseInt(target.value, 10) || 0)
                     }
                 }
             />
-            {availableDuration &&
-                <span>{availableDuration.toFormat("hh:mm:ss")}</span>
-            }
+            {availableDuration
+                && <span>{availableDuration.toFormat("hh:mm:ss")}</span>}
         </div>
     )
 }

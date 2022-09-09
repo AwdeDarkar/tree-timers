@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react"
 
 import { DateTime } from "luxon"
 
-import { Add, CheckBoxOutlineBlank, DisabledByDefault, CheckBox } from "@mui/icons-material"
+import {
+    Add, CheckBoxOutlineBlank, DisabledByDefault, CheckBox,
+} from "@mui/icons-material"
 
 import type { UUID } from "./uuid"
 import { useLocalStorage } from "./localStorageTools"
@@ -10,8 +12,17 @@ import { TimerData, saveTimer } from "./timerUtils"
 import { AddTimerDialog } from "./TimerDialogs"
 import Timer from "./Timer"
 
+/**
+ *
+ */
 export default function TimerPage(props: {}) {
-    function usePageStore<T>(stateName: string, defaultValue: T): [T, (newValue: T) => void, () => void] {
+    /**
+     *
+     * @param stateName
+     * @param defaultValue
+     */
+    function usePageStore<T>(stateName: string, defaultValue: T):
+    [T, (newValue: T) => void, () => void] {
         return useLocalStorage<T>(`root-${stateName}`, defaultValue)
     }
 
@@ -41,32 +52,35 @@ export default function TimerPage(props: {}) {
                 <tr>
                     <td>Notifications?</td>
                     <td>
-                        {(!notificationsActive) ?
-                            ((notificationsPermitted !== "denied") ?
-                                <CheckBoxOutlineBlank
-                                    className="IconButton"
-                                    onClick={() => {
-                                        if (notificationsPermitted === "default") {
-                                            Notification.requestPermission().then((result) => {
-                                                setNotificationsPermitted(result)
-                                                setNotificationsActive(result === "granted")
-                                            })
-                                        } else {
-                                            setNotificationsActive(true)
-                                        }
-                                    }}
-                                /> :
-                                <DisabledByDefault />) :
+                        {(!notificationsActive && notificationsPermitted !== "denied") && (
+                            <CheckBoxOutlineBlank
+                                className="IconButton"
+                                onClick={() => {
+                                    if (notificationsPermitted === "default") {
+                                        Notification.requestPermission().then((result) => {
+                                            setNotificationsPermitted(result)
+                                            setNotificationsActive(result === "granted")
+                                        })
+                                    } else {
+                                        setNotificationsActive(true)
+                                    }
+                                }}
+                            />
+                        )}
+                        {(!notificationsActive && notificationsPermitted === "denied") && (
+                            <DisabledByDefault />
+                        )}
+                        {(notificationsActive) && (
                             <CheckBox
                                 className="IconButton"
                                 onClick={() => setNotificationsActive(false)}
                             />
-                        }
+                        )}
                     </td>
                 </tr>
             </table>
             <ul className="TimerList">
-                {timerIDs.map(id => (
+                {timerIDs.map((id) => (
                     <Timer
                         key={id}
                         id={id}
@@ -75,8 +89,8 @@ export default function TimerPage(props: {}) {
                         }}
                         currentTime={currentTime}
                         notifyWhenFinished={notificationsActive}
-                    />)
-                )}
+                    />
+                ))}
             </ul>
             {addDialogOpen || (
                 <Add
@@ -84,7 +98,12 @@ export default function TimerPage(props: {}) {
                     onClick={() => setAddDialogOpen(true)}
                 />
             )}
-            {addDialogOpen && <AddTimerDialog addTimer={addTimer} onCancel={() => setAddDialogOpen(false)} />}
+            {addDialogOpen && (
+                <AddTimerDialog
+                    addTimer={addTimer}
+                    onCancel={() => setAddDialogOpen(false)}
+                />
+            )}
         </div>
     )
 }

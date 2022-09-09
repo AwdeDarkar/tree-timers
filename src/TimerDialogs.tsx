@@ -7,12 +7,15 @@ import { uuidv4 } from "./uuid"
 import { TimerData } from "./timerUtils"
 
 /**
+ * Component form dialog for adding a new timer
  *
- * @param props
- * @param props.maxDuration
- * @param props.parentID
- * @param props.addTimer
- * @param props.onCancel
+ * @param {any} props Component props
+ * @param {Duration?} props.maxDuration
+ *  The maximum duration that can be set on this timer (by parent)
+ * @param {UUID} props.parentID The ID of the parent timer (if any)
+ * @param {Function} props.addTimer Callback to add a timer to the page
+ * @param {Function} props.onCancel Callback to cancel the timer creation
+ * @returns {Element} A JSX element for the timer creation dialog
  */
 export function AddTimerDialog(props: {
         maxDuration?: Duration,
@@ -82,10 +85,12 @@ export function AddTimerDialog(props: {
 }
 
 /**
+ * Component with a custom hours:minutes:seconds duration input
  *
- * @param props
- * @param props.onChange
- * @param props.maxDuration
+ * @param {any} props Component props
+ * @param {Function} props.onChange Callback to call when the duration changes
+ * @param {Duration} props.maxDuration The maximum duration that can be set (by parent, if any)
+ * @returns {Element} A JSX element for the duration input
  */
 export function DurationInput(props: {
         onChange: (time: {hours: number, minutes: number, seconds: number}) => void,

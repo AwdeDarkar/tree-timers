@@ -21,15 +21,24 @@ import {
 } from "./svgTools"
 
 /**
+ * Timer component.
  *
- * @param props
- * @param props.id
- * @param props.currentTime
- * @param props.triggerStart
- * @param props.triggerStop
- * @param props.onDelete
- * @param props.notifyWhenFinished
- * @param props.siblingRunning
+ * This is the main component for the timer page, it represents a countdown timer
+ * that may have children timers and enforces some rules about its children.
+ *
+ * @param {any} props Component props
+ * @param {UUID} props.id
+ *  The ID of the timer to display (used to lookup the timer data from local storage)
+ * @param {DateTime} props.currentTime The current time (used to calculate the time remaining)
+ * @param {Function} props.triggerStart Callback to inform the parent that the timer has started
+ * @param {Function} props.triggerStop Callback to inform the parent that the timer has paused
+ * @param {Function} props.onDelete Callback to inform the parent that the timer has been deleted
+ * @param {boolean} props.notifyWhenFinished Whether to notify the user when the timer finishes
+ * @param {UUID} props.siblingRunning
+ *  The ID of the sibling timer that is currently running (may be this timer,
+ *  or a non-existent timer). Used to enforce the rule that only one timer at a level
+ *  can be running at a time.
+ * @returns {Element} The timer component
  */
 export default function Timer(props: {
         id: UUID,
@@ -48,10 +57,17 @@ export default function Timer(props: {
     } = props
 
     /**
+     * This is a custom hook to manage the state of the timer and synchronize it
+     * with local storage by UUID. It is a wrapper around useLocalStorage and
+     * saves values in the format `<uuid>-<stateName>`.
      *
-     * @param stateName
-     * @param defaultValue
-     * @param serializer
+     * @template T The type of the state to manage
+     * @param {string} stateName The name of the state to manage (used as a suffix for the key)
+     * @param {T} defaultValue The default value to use if the state is not found in local storage
+     * @param {CustomSerializable} serializer
+     *  Serializer to correctly manage the state in local storage
+     * @returns {[T, (newValue: T) => void, () => void]}
+     *  The state value, a function to update the state, and a function to reset the state
      */
     function useUUIDStore<T>(
         stateName: string,
@@ -61,9 +77,11 @@ export default function Timer(props: {
         return useLocalStorage<T>(`${id}-${stateName}`, defaultValue, serializer)
     }
 
+    // TODO: setName and setTotalTime are unused, they'll be put in the edit dialog
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [name, setName, clearName] = useUUIDStore<string>("name", "unnamed")
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [totalTime, setTotalTime, clearTotalTime] = useUUIDStore<Duration>("totalTime", Duration.fromMillis(0), durationSerializer)
-    const [parentID, setParentID, clearParentID] = useUUIDStore<UUID|"root">("parentID", "root")
     const [childrenIDs, setChildrenIDs, clearChildrenIDs] = useUUIDStore<UUID[]>("childrenIDs", [])
 
     const [childRunning, setChildRunning, clearChildRunning] = useUUIDStore<UUID | undefined>("childRunning", undefined)
@@ -71,6 +89,7 @@ export default function Timer(props: {
     const [finished, setFinished, clearFinished] = useUUIDStore<boolean>("finished", false)
     const [elapsed, setElapsed, clearElapsed] = useUUIDStore<Duration>("elapsed", Duration.fromMillis(0), durationSerializer)
 
+    // These are the states that are not saved to local storage
     const [expanded, setExpanded] = useState<boolean>(false)
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
 
@@ -79,10 +98,11 @@ export default function Timer(props: {
         setChildrenIDs([...childrenIDs, timer.id])
     }
 
+    // This function cleans up storage on deletion, though it's a bit messy and
+    // could probably be improved to more easily support adding new states
     const clearSelf = () => {
         clearName()
         clearTotalTime()
-        clearParentID()
         clearChildrenIDs()
         clearChildRunning()
         clearStarted()
@@ -236,14 +256,17 @@ export default function Timer(props: {
 }
 
 /**
+ * Custom start/pause control for timers that indecates the percent of time remaining
  *
- * @param props
- * @param props.running
- * @param props.finished
- * @param props.startable
- * @param props.percentRemaining
- * @param props.onStart
- * @param props.onStop
+ * @param {any} props Component props
+ * @param {boolean} props.running Whether the timer is currently running
+ * @param {boolean} props.finished Whether the timer has finished
+ * @param {boolean} props.startable
+ *  Whether the timer can be started (parent timers can't be started if all their time is allocated)
+ * @param {number} props.percentRemaining The percent of time remaining (0-1)
+ * @param {Function} props.onStart Callback to start the timer
+ * @param {Function} props.onStop Callback to pause the timer
+ * @returns {Element} The component
  */
 function TimerControl(props: {
         running: boolean, finished: boolean, startable: boolean,

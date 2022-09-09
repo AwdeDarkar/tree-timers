@@ -4,6 +4,10 @@
   "license": "MIT",
   "author": "Benjamin Croisdale",
   "homepage": "https://AwdeDarkar.github.io/tree-timers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AwdeDarkar/tree-timers"
+  },
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.4",

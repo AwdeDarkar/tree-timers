@@ -16,9 +16,13 @@ import Timer from "./Timer"
 /**
  * The main page of the app, which displays all the root timers in a list.
  *
+ * @param {any} props The component props.
+ * @param {boolean} props.notifications Whether timers should send notifications when complete.
  * @returns {Element} The main page of the app.
  */
-export default function TimerPage() {
+export default function TimerPage(props: {notifications: boolean}) {
+    const { notifications } = props
+
     /**
      * This is a custom hook to manage the state of the root timers and synchronize
      * them with local storage. Values are saved with the key `root-<stateName>`.
@@ -39,9 +43,6 @@ export default function TimerPage() {
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
     const [currentTime, setCurrentTime] = useState<DateTime>(DateTime.local())
 
-    const [notificationsActive, setNotificationsActive] = useState<boolean>(false)
-    const [notificationsPermitted, setNotificationsPermitted] = useState<NotificationPermission>("default")
-
     const addTimer = (timer: TimerData) => {
         setTimerIDs([...timerIDs, timer.id])
         saveTimer(timer)
@@ -56,38 +57,6 @@ export default function TimerPage() {
 
     return (
         <Container>
-            <h1>Timer Page</h1>
-            <table>
-                <tr>
-                    <td>Notifications?</td>
-                    <td>
-                        {(!notificationsActive && notificationsPermitted !== "denied") && (
-                            <CheckBoxOutlineBlank
-                                className="IconButton"
-                                onClick={() => {
-                                    if (notificationsPermitted === "default") {
-                                        Notification.requestPermission().then((result) => {
-                                            setNotificationsPermitted(result)
-                                            setNotificationsActive(result === "granted")
-                                        })
-                                    } else {
-                                        setNotificationsActive(true)
-                                    }
-                                }}
-                            />
-                        )}
-                        {(!notificationsActive && notificationsPermitted === "denied") && (
-                            <DisabledByDefault />
-                        )}
-                        {(notificationsActive) && (
-                            <CheckBox
-                                className="IconButton"
-                                onClick={() => setNotificationsActive(false)}
-                            />
-                        )}
-                    </td>
-                </tr>
-            </table>
             <ul className="TimerList">
                 {timerIDs.map((id) => (
                     <Timer
@@ -97,7 +66,7 @@ export default function TimerPage() {
                             setTimerIDs(timerIDs.filter((tid) => tid !== id))
                         }}
                         currentTime={currentTime}
-                        notifyWhenFinished={notificationsActive}
+                        notifyWhenFinished={notifications}
                     />
                 ))}
             </ul>

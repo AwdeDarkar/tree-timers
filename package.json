@@ -74,6 +74,7 @@
       }
     },
     "rules": {
+      "eol-last": "warn",
       "import/extensions": [
         "error",
         "never"

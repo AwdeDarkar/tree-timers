@@ -1,14 +1,21 @@
 import React, { useState } from "react"
 
 import {
-    Divider,
-    Drawer,
-    FormControl, IconButton, InputLabel, MenuItem,
-    Select, SelectChangeEvent, useTheme,
+    Divider, Drawer, Button,
+    FormControl, FormControlLabel, FormLabel, IconButton, InputLabel, MenuItem,
+    Select, SelectChangeEvent, Switch, useTheme,
 } from "@mui/material"
 import { ChevronRight } from "@mui/icons-material"
 
 import { useThemeControllers, themes } from "./theme"
+
+export interface SettingsData {
+    notificationPermissionsStatus: "active" | "inactive" | "denied" | "unknown"
+}
+
+export const defaultSettings: SettingsData = {
+    notificationPermissionsStatus: "unknown",
+}
 
 /**
  * This is a toggleable drawer that allows the user to change the global settings.
@@ -16,10 +23,21 @@ import { useThemeControllers, themes } from "./theme"
  * @param {any} props Component props.
  * @param {boolean} props.open Whether the drawer is open.
  * @param {() => void} props.closeDrawer A function to close the drawer.
+ * @param {SettingsData} props.settings The current settings.
+ * @param {(SettingsData) => void} props.setSettings A function to set the settings.
+ * @param {() => void} props.resetSettings A function to reset the settings.
  * @returns {Drawer} The settings panel.
  */
-export default function SettingsPanel(props: { open: boolean, closeDrawer: () => void }) {
-    const { open, closeDrawer } = props
+export default function SettingsPanel(props: {
+        open: boolean,
+        settings: SettingsData,
+        setSettings: (settings: SettingsData) => void,
+        resetSettings: () => void,
+        closeDrawer: () => void
+    }) {
+    const {
+        open, settings, setSettings, resetSettings, closeDrawer,
+    } = props
 
     const theme = useTheme()
     const { currentThemeName, setTheme, tempSetTheme } = useThemeControllers()
@@ -32,11 +50,19 @@ export default function SettingsPanel(props: { open: boolean, closeDrawer: () =>
         setTheme(newTheme)
     }
 
+    const resetAllSettings = () => {
+        resetSettings()
+        setTheme(themes.default)
+    }
+
     return (
         <Drawer
             anchor="right"
             open={open}
             onClose={closeDrawer}
+            PaperProps={{
+                sx: { width: "33%" },
+            }}
         >
             <div>
                 <IconButton onClick={closeDrawer}>
@@ -67,6 +93,55 @@ export default function SettingsPanel(props: { open: boolean, closeDrawer: () =>
                             </MenuItem>
                         ))}
                 </Select>
+            </FormControl>
+            <Divider />
+            <FormControl>
+                <FormControlLabel
+                    label="Notifications"
+                    labelPlacement="start"
+                    control={(
+                        <Switch
+                            color="primary"
+                            inputProps={{ "aria-label": "Notifications" }}
+                            checked={settings.notificationPermissionsStatus === "active"}
+                            disabled={settings.notificationPermissionsStatus === "denied"}
+                            onChange={() => {
+                                if (settings.notificationPermissionsStatus === "unknown") {
+                                    Notification.requestPermission().then((permission) => {
+                                        if (permission === "granted") {
+                                            setSettings({
+                                                ...settings,
+                                                notificationPermissionsStatus: "active",
+                                            })
+                                        } else {
+                                            setSettings({
+                                                ...settings,
+                                                notificationPermissionsStatus: "denied",
+                                            })
+                                        }
+                                    })
+                                } else {
+                                    setSettings({
+                                        ...settings,
+                                        notificationPermissionsStatus: settings.notificationPermissionsStatus === "active"
+                                            ? "inactive"
+                                            : "active",
+                                    })
+                                }
+                            }}
+                        />
+                    )}
+                />
+            </FormControl>
+            <Divider />
+            <FormControl>
+                <Button
+                    variant="contained"
+                    color="warning"
+                    onClick={resetAllSettings}
+                >
+                    Reset Settings
+                </Button>
             </FormControl>
         </Drawer>
     )

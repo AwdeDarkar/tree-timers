@@ -12,8 +12,9 @@ import {
     Settings,
 } from "@mui/icons-material"
 
+import { useLocalStorage } from "./localStorageTools"
 import ThemeProviderWrapper from "./theme"
-import SettingsPanel from "./SettingsPanel"
+import SettingsPanel, { SettingsData, defaultSettings } from "./SettingsPanel"
 import TimerPage from "./TimerPage"
 
 import "./App.css"
@@ -27,6 +28,7 @@ import packageJson from "../package.json"
  */
 export default function App() {
     const [drawerOpen, setDrawerOpen] = useState(false)
+    const [settings, setSettings, resetSettings] = useLocalStorage<SettingsData>("settings", defaultSettings)
 
     return (
         <ThemeProviderWrapper>
@@ -48,9 +50,20 @@ export default function App() {
                     </Toolbar>
                 </AppBar>
                 <Container>
-                    <SettingsPanel open={drawerOpen} closeDrawer={() => setDrawerOpen(false)} />
+                    <SettingsPanel
+                        open={drawerOpen}
+                        settings={settings}
+                        setSettings={setSettings}
+                        resetSettings={resetSettings}
+                        closeDrawer={() => setDrawerOpen(false)}
+                    />
+                    <Toolbar>
+                        Empty toolbar to prevent content from being hidden behind the app bar.
+                    </Toolbar>
                     <Paper elevation={1}>
-                        <TimerPage />
+                        <TimerPage
+                            notifications={settings.notificationPermissionsStatus === "active"}
+                        />
                     </Paper>
                 </Container>
                 <Footer />

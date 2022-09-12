@@ -1,6 +1,16 @@
 import React, { useState } from "react"
 
-import { CssBaseline } from "@mui/material"
+import {
+    AppBar, CssBaseline, IconButton,
+    Toolbar, Typography, Box, Stack,
+    Link,
+    Container,
+    Paper,
+} from "@mui/material"
+import {
+    GitHub,
+    Settings,
+} from "@mui/icons-material"
 
 import ThemeProviderWrapper from "./theme"
 import SettingsPanel from "./SettingsPanel"
@@ -16,14 +26,35 @@ import packageJson from "../package.json"
  * @returns {Element} The main app component.
  */
 export default function App() {
+    const [drawerOpen, setDrawerOpen] = useState(false)
+
     return (
         <ThemeProviderWrapper>
-            <CssBaseline />
-            <div className="App">
-                <SettingsPanel />
-                <TimerPage />
+            <Box sx={{ display: "flex" }}>
+                <CssBaseline />
+                <AppBar position="fixed">
+                    <Toolbar>
+                        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+                            Tree Timers
+                        </Typography>
+                        <IconButton
+                            color="inherit"
+                            aria-label="open settings"
+                            onClick={() => setDrawerOpen(true)}
+                            edge="end"
+                        >
+                            <Settings />
+                        </IconButton>
+                    </Toolbar>
+                </AppBar>
+                <Container>
+                    <SettingsPanel open={drawerOpen} closeDrawer={() => setDrawerOpen(false)} />
+                    <Paper elevation={1}>
+                        <TimerPage />
+                    </Paper>
+                </Container>
                 <Footer />
-            </div>
+            </Box>
         </ThemeProviderWrapper>
     )
 }
@@ -36,15 +67,30 @@ export default function App() {
  */
 function Footer() {
     return (
-        <div className="Footer">
-            <p>
-                {`${packageJson.name} `}
-                version
-                {` ${packageJson.version}`}
-            </p>
-            <p>
-                <a href={packageJson.repository.url}>Source on Github</a>
-            </p>
-        </div>
+        <Stack
+            spacing={1}
+            sx={{
+                pt: 4,
+                position: "fixed",
+                bottom: 8,
+                width: "100%",
+                textAlign: "center",
+            }}
+            alignItems="center"
+        >
+            <Stack direction="row" alignItems="center" gap={1}>
+                <Typography variant="body2" color="text.secondary" align="center">
+                    {`${packageJson.name} `}
+                    version
+                    {` ${packageJson.version}`}
+                </Typography>
+                <Link href={packageJson.repository.url} target="_blank" color="inherit">
+                    <GitHub />
+                </Link>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+                {`Copyright © ${packageJson.author} ${new Date().getFullYear()}`}
+            </Typography>
+        </Stack>
     )
 }

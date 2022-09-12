@@ -5,6 +5,7 @@ import { DateTime } from "luxon"
 import {
     Add, CheckBoxOutlineBlank, DisabledByDefault, CheckBox,
 } from "@mui/icons-material"
+import { Container } from "@mui/system"
 
 import type { UUID } from "./uuid"
 import { useLocalStorage } from "./localStorageTools"
@@ -17,7 +18,7 @@ import Timer from "./Timer"
  *
  * @returns {Element} The main page of the app.
  */
-export default function TimerPage(props: {}) {
+export default function TimerPage() {
     /**
      * This is a custom hook to manage the state of the root timers and synchronize
      * them with local storage. Values are saved with the key `root-<stateName>`.
@@ -54,7 +55,7 @@ export default function TimerPage(props: {}) {
     }, [])
 
     return (
-        <div className="TimerPage">
+        <Container>
             <h1>Timer Page</h1>
             <table>
                 <tr>
@@ -112,6 +113,6 @@ export default function TimerPage(props: {}) {
                     onCancel={() => setAddDialogOpen(false)}
                 />
             )}
-        </div>
+        </Container>
     )
 }

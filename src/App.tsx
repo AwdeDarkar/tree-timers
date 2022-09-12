@@ -1,5 +1,9 @@
-import React from "react"
+import React, { useState } from "react"
 
+import { CssBaseline } from "@mui/material"
+
+import ThemeProviderWrapper from "./theme"
+import SettingsPanel from "./SettingsPanel"
 import TimerPage from "./TimerPage"
 
 import "./App.css"
@@ -13,10 +17,14 @@ import packageJson from "../package.json"
  */
 export default function App() {
     return (
-        <div className="App">
-            <TimerPage />
-            <Footer />
-        </div>
+        <ThemeProviderWrapper>
+            <CssBaseline />
+            <div className="App">
+                <SettingsPanel />
+                <TimerPage />
+                <Footer />
+            </div>
+        </ThemeProviderWrapper>
     )
 }
 

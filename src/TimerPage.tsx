@@ -5,7 +5,9 @@ import { DateTime } from "luxon"
 import {
     Add, CheckBoxOutlineBlank, DisabledByDefault, CheckBox,
 } from "@mui/icons-material"
-import { Container } from "@mui/system"
+import {
+    Button, Collapse, Container, List, useTheme,
+} from "@mui/material"
 
 import type { UUID } from "./uuid"
 import { useLocalStorage } from "./localStorageTools"
@@ -22,6 +24,8 @@ import Timer from "./Timer"
  */
 export default function TimerPage(props: {notifications: boolean}) {
     const { notifications } = props
+
+    const theme = useTheme()
 
     /**
      * This is a custom hook to manage the state of the root timers and synchronize
@@ -56,8 +60,12 @@ export default function TimerPage(props: {notifications: boolean}) {
     }, [])
 
     return (
-        <Container>
-            <ul className="TimerList">
+        <Container
+            sx={{
+                padding: theme.spacing(4),
+            }}
+        >
+            <List>
                 {timerIDs.map((id) => (
                     <Timer
                         key={id}
@@ -69,19 +77,23 @@ export default function TimerPage(props: {notifications: boolean}) {
                         notifyWhenFinished={notifications}
                     />
                 ))}
-            </ul>
+            </List>
             {addDialogOpen || (
-                <Add
-                    className="IconButton"
+                <Button
+                    variant="outlined"
+                    color="primary"
                     onClick={() => setAddDialogOpen(true)}
-                />
+                    startIcon={<Add />}
+                >
+                    Create root timer
+                </Button>
             )}
-            {addDialogOpen && (
+            <Collapse in={addDialogOpen} timeout="auto" unmountOnExit>
                 <AddTimerDialog
                     addTimer={addTimer}
                     onCancel={() => setAddDialogOpen(false)}
                 />
-            )}
+            </Collapse>
         </Container>
     )
 }

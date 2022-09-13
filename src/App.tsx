@@ -66,8 +66,8 @@ export default function App() {
                         />
                     </Paper>
                 </Container>
-                <Footer />
             </Box>
+            <Footer />
         </ThemeProviderWrapper>
     )
 }
@@ -84,9 +84,10 @@ function Footer() {
             spacing={1}
             sx={{
                 pt: 4,
-                position: "fixed",
+                position: "sticky",
                 bottom: 8,
                 width: "100%",
+                marginTop: "auto",
                 textAlign: "center",
             }}
             alignItems="center"

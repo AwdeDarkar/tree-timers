@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from "react"
 
+import {
+    useTheme,
+    Paper, Box, Container,
+    FormControl, InputLabel, Input, IconButton, Button,
+} from "@mui/material"
+import { Add, Close } from "@mui/icons-material"
+
 import { Duration } from "luxon"
 
 import type { UUID } from "./uuid"
 import { uuidv4 } from "./uuid"
 import { TimerData } from "./timerUtils"
-
 /**
  * Component form dialog for adding a new timer
  *
@@ -27,6 +33,8 @@ export function AddTimerDialog(props: {
         addTimer, onCancel, parentID, maxDuration,
     } = props
 
+    const theme = useTheme()
+
     const [name, setName] = useState<string>("")
     const [totalTime, setTotalTime] = useState<Duration|undefined>(undefined)
 
@@ -42,45 +50,42 @@ export function AddTimerDialog(props: {
     }
 
     return (
-        <table>
-            <tr>
-                <td>
-                    <label>Name</label>
-                </td>
-                <td>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={({ target }) => setName(target.value)}
-                    />
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <label>Total Time</label>
-                </td>
-                <td>
-                    <DurationInput
-                        maxDuration={maxDuration}
-                        onChange={(time) => setTotalTime(Duration.fromObject(time))}
-                    />
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <button
-                        type="submit"
+        <Paper elevation={3}>
+            <Box>
+                <IconButton onClick={onCancel}>
+                    <Close />
+                </IconButton>
+                <Container
+                    sx={{
+                        padding: theme.spacing(1),
+                    }}
+                >
+                    <FormControl>
+                        <InputLabel htmlFor="timer-name">Timer Name</InputLabel>
+                        <Input id="timer-name" value={name} onChange={(e) => setName(e.target.value)} />
+                    </FormControl>
+                    <tr>
+                        <td>
+                            <label>Total Time</label>
+                        </td>
+                        <td>
+                            <DurationInput
+                                maxDuration={maxDuration}
+                                onChange={(time) => setTotalTime(Duration.fromObject(time))}
+                            />
+                        </td>
+                    </tr>
+                    <Button
                         onClick={submit}
-                        onKeyDown={(e) => (e.key === "Enter") && submit()}
+                        color="success"
+                        variant="contained"
+                        startIcon={<Add />}
                     >
-                        Add
-                    </button>
-                </td>
-                <td>
-                    <button onClick={onCancel} type="button">Cancel</button>
-                </td>
-            </tr>
-        </table>
+                        Create
+                    </Button>
+                </Container>
+            </Box>
+        </Paper>
     )
 }
 
@@ -97,6 +102,8 @@ export function DurationInput(props: {
         maxDuration?: Duration|undefined,
     }) {
     const { onChange, maxDuration } = props
+
+    const theme = useTheme()
 
     const [hours, setHours] = useState<number>(0)
     const [minutes, setMinutes] = useState<number>(0)
@@ -155,10 +162,26 @@ export function DurationInput(props: {
 
     const padZero = (num: number) => (num < 10 ? `0${num}` : String(num))
 
+    const inputStyle = {
+        backgroundColor: "inherit",
+        color: theme.palette.text.primary,
+        padding: theme.spacing(0.5),
+        margin: theme.spacing(0.5),
+        borderColor: theme.palette.text.primary,
+    }
+
     return (
-        <div className="TimeInput">
+        <div
+            style={{
+                border: `1px solid ${theme.palette.text.primary}`,
+                borderRadius: theme.shape.borderRadius,
+                padding: theme.spacing(0.5),
+                margin: theme.spacing(0.5),
+            }}
+        >
             <input
                 type="number"
+                style={inputStyle}
                 className="TimeInputField"
                 maxLength={2}
                 size={2}
@@ -172,6 +195,7 @@ export function DurationInput(props: {
             <span>:</span>
             <input
                 type="number"
+                style={inputStyle}
                 className="TimeInputField"
                 maxLength={2}
                 size={2}
@@ -185,6 +209,7 @@ export function DurationInput(props: {
             <span>:</span>
             <input
                 type="number"
+                style={inputStyle}
                 className="TimeInputField"
                 maxLength={2}
                 size={2}

@@ -1,9 +1,18 @@
 import React, { useState } from "react"
 
+import {
+    IconButton, Stack,
+    List, ListItem, Collapse,
+    useTheme,
+    Typography,
+    Button,
+} from "@mui/material"
 import AccountTreeTwoToneIcon from "@mui/icons-material/AccountTreeTwoTone"
 import AccountTreeIcon from "@mui/icons-material/AccountTree"
 import ReplayIcon from "@mui/icons-material/Replay"
-import { Add, Delete } from "@mui/icons-material"
+import {
+    Add, Delete,
+} from "@mui/icons-material"
 
 import { DateTime, Duration } from "luxon"
 
@@ -56,6 +65,8 @@ export default function Timer(props: {
         siblingRunning,
     } = props
 
+    const theme = useTheme()
+
     /**
      * This is a custom hook to manage the state of the timer and synchronize it
      * with local storage by UUID. It is a wrapper around useLocalStorage and
@@ -92,6 +103,7 @@ export default function Timer(props: {
     // These are the states that are not saved to local storage
     const [expanded, setExpanded] = useState<boolean>(false)
     const [addDialogOpen, setAddDialogOpen] = useState<boolean>(false)
+    const [hovered, setHovered] = useState<boolean>(false)
 
     const addTimer = (timer: TimerData) => {
         saveTimer(timer)
@@ -153,105 +165,125 @@ export default function Timer(props: {
     }
 
     return (
-        <li className="Timer">
-            <h2>
-                <TimerControl
-                    running={started !== undefined}
-                    finished={finished}
-                    startable={totalTime.minus(childrenTime).shiftTo("milliseconds").milliseconds > 0}
-                    percentRemaining={timeRemaining.shiftTo("milliseconds").milliseconds / totalTime.shiftTo("milliseconds").milliseconds}
-                    onStart={startTimer}
-                    onStop={stopTimer}
-                />
-                {` ${name} `}
-                {expanded
-                    ? (
-                        <AccountTreeIcon
-                            className="IconButton"
-                            onClick={toggleExpanded}
-                        />
-                    )
-                    : (
-                        <AccountTreeTwoToneIcon
-                            className="IconButton"
-                            onClick={toggleExpanded}
-                        />
-                    )}
-                {` ${(finished) ? "00:00:00" : timeRemaining.toFormat("hh:mm:ss")}`}
-                {totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds >= 0
-                    && (
-                        <ReplayIcon
-                            className="IconButton"
-                            onClick={() => {
-                                setElapsed(Duration.fromMillis(0))
-                                setFinished(false)
-                                if (started) {
-                                    setStarted(currentTime)
-                                }
-                            }}
-                        />
-                    )}
-                {onDelete
-                && (
-                    <Delete
-                        className="IconButton"
-                        onClick={() => {
-                            clearSelf()
-                            onDelete && onDelete()
-                        }}
+        <ListItem
+            disablePadding
+            sx={{
+                marginLeft: theme.spacing(4),
+            }}
+        >
+            <Stack
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+            >
+                <Typography variant="h6">
+                    <IconButton
+                        color="primary"
+                        aria-label="expand"
+                        onClick={toggleExpanded}
+                    >
+                        {expanded ? <AccountTreeIcon /> : <AccountTreeTwoToneIcon />}
+                    </IconButton>
+                    <TimerControl
+                        running={started !== undefined}
+                        finished={finished}
+                        startable={totalTime.minus(childrenTime).shiftTo("milliseconds").milliseconds > 0}
+                        percentRemaining={
+                            timeRemaining
+                                .shiftTo("milliseconds")
+                                .milliseconds
+                            / totalTime.shiftTo("milliseconds").milliseconds
+                        }
+                        onStart={startTimer}
+                        onStop={stopTimer}
                     />
-                )}
-            </h2>
-            {expanded
-            && (
-                <ul className="TimerList">
-                    {childrenIDs.map((cid) => (
-                        (
-                            <Timer
-                                key={cid}
-                                id={cid}
-                                currentTime={currentTime}
-                                triggerStart={() => {
-                                    setChildRunning(cid)
-                                    if (started === undefined) {
-                                        startTimer()
+                    {` ${name} `}
+                    {` ${(finished) ? "00:00:00" : timeRemaining.toFormat("hh:mm:ss")}`}
+                    {totalTime.minus(timeRemaining).shiftTo("milliseconds").milliseconds >= 0
+                        && (
+                            <IconButton
+                                color="primary"
+                                aria-label="reset-time"
+                                onClick={() => {
+                                    setElapsed(Duration.fromMillis(0))
+                                    setFinished(false)
+                                    if (started) {
+                                        setStarted(currentTime)
                                     }
                                 }}
-                                triggerStop={() => {
-                                    setChildRunning(undefined)
-                                    if (started !== undefined) {
-                                        stopTimer()
-                                    }
-                                }}
-                                onDelete={() => {
-                                    setChildrenIDs(childrenIDs.filter((_cid) => _cid !== cid))
-                                }}
-                                siblingRunning={childRunning}
-                                notifyWhenFinished={notifyWhenFinished || false}
-                            />
-                        )))}
-                    {addDialogOpen || (unallocatedTime.shiftTo("milliseconds").milliseconds > 0
+                            >
+                                <ReplayIcon />
+                            </IconButton>
+                        )}
+                    {onDelete
                     && (
-                        <div>
-                            <Add
-                                className="IconButton"
-                                onClick={() => setAddDialogOpen(true)}
-                            />
-                            {` Add Timer (unallocated: ${unallocatedTime.toFormat("hh:mm:ss")})`}
-                        </div>
-                    ))}
-                    {addDialogOpen
-                    && (
-                        <AddTimerDialog
-                            addTimer={addTimer}
-                            maxDuration={unallocatedTime}
-                            parentID={id}
-                            onCancel={() => setAddDialogOpen(false)}
-                        />
+                        <IconButton
+                            color="primary"
+                            sx={{
+                                "&:hover": {
+                                    color: "warning.contrastText",
+                                    backgroundColor: "warning.main",
+                                },
+                            }}
+                            aria-label="delete-timer"
+                            onClick={() => {
+                                clearSelf()
+                                onDelete && onDelete()
+                            }}
+                        >
+                            <Delete />
+                        </IconButton>
                     )}
-                </ul>
-            )}
-        </li>
+                </Typography>
+                <Collapse component="li" in={expanded} timeout="auto" unmountOnExit>
+                    <List disablePadding>
+                        {childrenIDs.map((cid) => (
+                            (
+                                <Timer
+                                    key={cid}
+                                    id={cid}
+                                    currentTime={currentTime}
+                                    triggerStart={() => {
+                                        setChildRunning(cid)
+                                        if (started === undefined) {
+                                            startTimer()
+                                        }
+                                    }}
+                                    triggerStop={() => {
+                                        setChildRunning(undefined)
+                                        if (started !== undefined) {
+                                            stopTimer()
+                                        }
+                                    }}
+                                    onDelete={() => {
+                                        setChildrenIDs(childrenIDs.filter((_cid) => _cid !== cid))
+                                    }}
+                                    siblingRunning={childRunning}
+                                    notifyWhenFinished={notifyWhenFinished || false}
+                                />
+                            )))}
+                        {addDialogOpen || (unallocatedTime.shiftTo("milliseconds").milliseconds > 0
+                        && (
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => setAddDialogOpen(true)}
+                                startIcon={<Add />}
+                            >
+                                Create sub-timer
+                            </Button>
+                        ))}
+                        <Collapse in={addDialogOpen} timeout="auto" unmountOnExit>
+                            <AddTimerDialog
+                                addTimer={addTimer}
+                                maxDuration={unallocatedTime}
+                                parentID={id}
+                                onCancel={() => setAddDialogOpen(false)}
+                            />
+                        </Collapse>
+                    </List>
+                </Collapse>
+            </Stack>
+        </ListItem>
     )
 }
 
@@ -278,6 +310,8 @@ function TimerControl(props: {
         onStart, onStop,
     } = props
 
+    const theme = useTheme()
+
     const [hovering, setHovering] = useState<boolean>(false)
 
     const radius = 8
@@ -288,7 +322,7 @@ function TimerControl(props: {
                 className="TimerControl"
                 style={{ cursor: "not-allowed" }}
             >
-                <FinishedBox radius={radius} fill="#48A0B8" />
+                <FinishedBox radius={radius} fill={theme.palette.primary.dark} />
             </span>
         )
     }
@@ -299,7 +333,7 @@ function TimerControl(props: {
                 className="TimerControl"
                 style={{ cursor: "not-allowed" }}
             >
-                <FinishedBox radius={radius} fill="#61DAFB" />
+                <FinishedBox radius={radius} fill={theme.palette.primary.main} />
             </span>
         )
     }
@@ -316,13 +350,26 @@ function TimerControl(props: {
             onKeyDown={running ? onStop : onStart}
         >
             {(running && hovering) && (
-                <PauseCircle radius={radius} fill="#C9EFFB" percent={percentRemaining} />
+                <PauseCircle
+                    radius={radius}
+                    percent={percentRemaining}
+                    fill={theme.palette.primary.light}
+                />
             )}
             {(running && !hovering) && (
-                <SemiCircle radius={radius} fill="#61dafb" percent={percentRemaining} />
+                <SemiCircle
+                    radius={radius}
+                    percent={percentRemaining}
+                    fill={theme.palette.primary.main}
+                />
             )}
             {(!running) && (
-                <PlayButton radius={radius} fill={(hovering) ? "#C9EFFB" : "#61dafb"} />
+                <PlayButton
+                    radius={radius}
+                    fill={(hovering)
+                        ? theme.palette.primary.light
+                        : theme.palette.primary.main}
+                />
             )}
         </span>
     )

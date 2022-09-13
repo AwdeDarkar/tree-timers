@@ -56,15 +56,6 @@
   list-style-type: none;
 }
 
-.IconButton {
-  color: var(--color-primary);
-  cursor: pointer;
-}
-
-.IconButton:hover {
-  color: var(--color-highlight);
-}
-
 input {
   background-color: var(--color-background);
   color: var(--color-primary);
@@ -75,9 +66,7 @@ input {
 }
 
 .TimeInput {
-  background-color: var(--color-background);
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
+  border: 1px solid;
   border-radius: 5px;
   padding: 5px;
   margin: 5px;
